@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barcode Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Variables ── */
+:root {
+  --bg:      #909090;
+  --surface: #efefeb;
+  --surface2:#e6e6e2;
+  --border:  #d0d0cc;
+  --accent:  #1a7a3c;
+  --accent2: #0a6ebd;
+  --text:    #1a1a1a;
+  --muted:   #666666;
+  --danger:  #d93025;
+  --radius:  12px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Top bar ── */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  z-index: 100;
+}
+
+.topbar-brand {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+  margin-right: auto;
+}
+
+/* ── Nav tabs in topbar ── */
+.nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+  padding: 6px 12px;
+  cursor: pointer;
+  min-height: 34px;
+  touch-action: manipulation;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.nav-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ── User dropdown ── */
+.user-drop-wrap { position: relative; }
+
+.user-drop-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  padding: 6px 12px;
+  cursor: pointer;
+  min-width: 90px;
+  justify-content: space-between;
+  min-height: 34px;
+  touch-action: manipulation;
+}
+
+.user-drop-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  min-width: 120px;
+  overflow: hidden;
+  z-index: 300;
+}
+
+.user-option {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.1s;
+}
+.user-option:hover  { background: var(--surface2); }
+.user-option.active { color: var(--accent); font-weight: 600; }
+
+/* ── Sheets connect btn ── */
+.connect-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+  padding: 6px 12px;
+  cursor: pointer;
+  min-height: 34px;
+  touch-action: manipulation;
+}
+
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #bbb;
+  flex-shrink: 0;
+}
+.status-dot.connected { background: #1a7a3c; box-shadow: 0 0 6px #1a7a3c88; }
+.status-dot.syncing   { background: var(--accent2); animation: blink 1s infinite; }
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── Pages ── */
+.page {
+  display: none;
+  padding: 70px 16px 60px;
+}
+.page.active { display: block; }
+
+/* ── Cards ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.card-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+/* ── Generator layout ── */
+.gen-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.gen-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Input row ── */
+.input-row {
+  display: flex;
+  gap: 10px;
+  position: relative;
+}
+
+input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: 16px;
+  padding: 12px 50px 12px 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+input[type="text"]:focus { border-color: var(--accent); }
+input[type="text"]::placeholder { color: var(--muted); font-size: 14px; }
+
+.mic-btn {
+  position: absolute;
+  right: 110px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  touch-action: manipulation;
+}
+.mic-btn.recording {
+  background: rgba(217,48,37,0.12);
+  animation: micPulse 1s infinite;
+}
+.mic-btn.recording svg { stroke: var(--danger); }
+@keyframes micPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(217,48,37,0.3); }
+  50%      { box-shadow: 0 0 0 6px rgba(217,48,37,0); }
+}
+
+.gen-btn {
+  background: #a8c5a0;
+  color: #2a2a2a;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 12px 18px;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 48px;
+  touch-action: manipulation;
+  transition: opacity 0.15s;
+}
+.gen-btn:active { opacity: 0.8; }
+
+.mic-status {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 8px;
+  min-height: 16px;
+  font-family: 'Space Mono', monospace;
+}
+
+/* ── Preview ── */
+.barcode-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 10px;
+}
+
+#barcode-canvas {
+  background: #fff;
+  border-radius: 6px;
+  max-width: 100%;
+}
+
+.barcode-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 2px;
+}
+
+.barcode-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
+.action-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 10px 16px;
+  cursor: pointer;
+  flex: 1;
+  min-width: 120px;
+  min-height: 44px;
+  touch-action: manipulation;
+  transition: border-color 0.15s;
+}
+.action-btn:hover { border-color: var(--accent2); }
+
+/* ── Sheets modal ── */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-backdrop.open { display: flex; }
+
+.modal-sheet {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  padding: 24px 20px 36px;
+  width: 100%;
+  max-width: 520px;
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-close {
+  position: absolute;
+  top: 14px; right: 14px;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.save-url-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 12px;
+  font-family: 'Space Mono', monospace;
+  padding: 9px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+.sync-log {
+  margin-top: 12px;
+  max-height: 80px;
+  overflow-y: auto;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.log-ok   { color: #1a7a3c; }
+.log-err  { color: var(--danger); }
+.log-info { color: var(--accent2); }
+
+/* ── History page ── */
+.history-page-inner { max-width: 1200px; margin: 0 auto; }
+
+.user-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.user-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  padding: 8px 16px;
+  cursor: pointer;
+  min-height: 38px;
+  touch-action: manipulation;
+  transition: all 0.15s;
+}
+.user-tab:hover { border-color: var(--accent); color: var(--text); }
+.user-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.tab-count {
+  background: rgba(255,255,255,0.25);
+  border-radius: 20px;
+  font-size: 10px;
+  padding: 1px 6px;
+  font-family: 'Space Mono', monospace;
+}
+.user-tab:not(.active) .tab-count {
+  background: var(--surface2);
+  color: var(--muted);
+}
+
+/* progress bar */
+.prog-label { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; margin-bottom: 5px; }
+.prog-bar   { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-bottom: 16px; }
+.prog-fill  { height: 100%; border-radius: 2px; transition: width 0.3s, background 0.3s; }
+
+/* history section header */
+.hist-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.hist-header-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  margin-right: auto;
+}
+.hist-count {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--accent2);
+}
+.clear-user-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 6px;
+  touch-action: manipulation;
+  transition: color 0.15s;
+}
+.clear-user-btn:hover { color: var(--danger); }
+
+/* history grid */
+.hist-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media (max-width: 700px) { .hist-grid { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 420px) { .hist-grid { grid-template-columns: 1fr; } }
+
+/* history card */
+.h-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.h-card-bc {
+  background: #fff;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  overflow: hidden;
+}
+.h-card-bc canvas { max-width: 100%; image-rendering: pixelated; }
+
+.h-card-text {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--text);
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.h-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.h-card-time { font-size: 10px; color: var(--muted); font-family: 'Space Mono', monospace; }
+
+.h-card-actions { display: flex; gap: 5px; }
+
+.h-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 11px;
+  padding: 4px 9px;
+  cursor: pointer;
+  touch-action: manipulation;
+  white-space: nowrap;
+  transition: border-color 0.15s;
+}
+.h-btn:hover { border-color: var(--accent2); }
+
+.h-del-btn {
+  background: none;
+  border: none;
+  color: #bbb;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  touch-action: manipulation;
+  transition: color 0.15s;
+  line-height: 1;
+}
+.h-del-btn:hover { color: var(--danger); }
+
+/* empty state */
+.empty-state {
+  text-align: center;
+  padding: 50px 20px;
+  color: var(--muted);
+  font-size: 14px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  grid-column: 1 / -1;
+}
+.empty-icon { font-size: 36px; margin-bottom: 12px; }
+
+/* detail modal */
+.detail-modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  align-items: center;
+  justify-content: center;
+}
+.detail-modal-backdrop.open { display: flex; }
+
+.detail-modal-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  width: min(400px, 92vw);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Toast ── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: #1a1a1a;
+  color: #fff;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  transition: transform 0.3s;
+  z-index: 999;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 480px) {
+  .page { padding: 66px 10px 50px; }
+  .barcode-actions { flex-direction: column; }
+  .action-btn { min-width: unset; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ TOP BAR ═══════════════════ -->
+<div class="topbar">
+  <span class="topbar-brand">Barcode Generator</span>
+
+  <!-- Nav tabs -->
+  <button class="nav-tab active" id="navGen" onclick="showPage('generator')">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="21" y2="14"/><line x1="14" y1="21" x2="21" y2="21"/><line x1="21" y1="14" x2="21" y2="21"/></svg>
+    Generator
+  </button>
+  <button class="nav-tab" id="navHist" onclick="showPage('history')">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4"/><polyline points="3 3 3 7 7 7"/></svg>
+    History
+  </button>
+
+  <!-- User dropdown -->
+  <div class="user-drop-wrap">
+    <button class="user-drop-btn" id="userDropBtn" onclick="toggleUserDropdown()">
+      <span id="userDropLabel">User1</span>
+      <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="user-drop-menu" id="userDropMenu">
+      <div class="user-option" onclick="selectUser('User1')">User1</div>
+      <div class="user-option" onclick="selectUser('User2')">User2</div>
+      <div class="user-option" onclick="selectUser('User3')">User3</div>
+      <div class="user-option" onclick="selectUser('User4')">User4</div>
+    </div>
+  </div>
+
+  <!-- Connect button -->
+  <button class="connect-btn" onclick="openConnectModal()">
+    <svg width="14" height="14" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <path fill="#43a047" d="M37 45H11c-1.657 0-3-1.343-3-3V6c0-1.657 1.343-3 3-3h19l10 10v29c0 1.657-1.343 3-3 3z"/>
+      <path fill="#c8e6c9" d="M40 13H30V3z"/>
+      <path fill="#2e7d32" d="M30 3l10 10h-10z"/>
+      <path fill="#fff" d="M15 22h18v2H15zm0 4h18v2H15zm0 4h12v2H15z"/>
+    </svg>
+    <span id="connectBtnLabel">Connect</span>
+    <div class="status-dot" id="statusDot"></div>
+  </button>
+</div>
+
+<!-- ═══════════════════ PAGE: GENERATOR ═══════════════════ -->
+<div class="page active" id="page-generator">
+  <div class="gen-layout">
+
+    <!-- LEFT: Input + Preview -->
+    <div class="gen-left">
+
+      <!-- Generate card -->
+      <div class="card">
+        <div class="card-title">Generate Barcode</div>
+        <div class="input-row">
+          <input type="text" id="barcodeInput" placeholder="Type text or numbers…" autocomplete="off" />
+          <button class="mic-btn" id="micBtn" onclick="toggleMic()" title="Tap to record">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="2" width="6" height="12" rx="3"/>
+              <path d="M5 10a7 7 0 0 0 14 0"/>
+              <line x1="12" y1="19" x2="12" y2="22"/>
+              <line x1="9" y1="22" x2="15" y2="22"/>
+            </svg>
+          </button>
+          <button class="gen-btn" onclick="generateBarcode()">Generate</button>
+        </div>
+        <div class="mic-status" id="micStatus"></div>
+      </div>
+
+      <!-- Preview card -->
+      <div class="card">
+        <div class="card-title">Preview</div>
+        <div class="barcode-display">
+          <div id="previewEmpty" style="color:var(--muted);font-size:13px;text-align:center;padding:30px 0;">Generate a barcode to see preview</div>
+          <canvas id="barcode-canvas" style="display:none;"></canvas>
+          <div class="barcode-label" id="barcode-label-text" style="display:none;"></div>
+          <div class="barcode-actions" id="barcodeActions" style="display:none;">
+            <button class="action-btn" onclick="downloadBarcode()">⬇ Download PNG</button>
+            <button class="action-btn" onclick="copyToClipboard()">⎘ Copy Image</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /gen-left -->
+
+  </div>
+</div>
+
+<!-- ═══════════════════ PAGE: HISTORY ═══════════════════ -->
+<div class="page" id="page-history">
+  <div class="history-page-inner">
+
+    <!-- User tabs -->
+    <div class="user-tabs" id="histUserTabs"></div>
+
+    <!-- Progress -->
+    <div class="prog-label" id="progLabel"></div>
+    <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+
+    <!-- Section header -->
+    <div class="hist-header">
+      <span class="hist-header-title" id="histSectionTitle">History</span>
+      <span class="hist-count" id="histCount"></span>
+      <button class="clear-user-btn" onclick="clearActiveUser()">Clear history</button>
+    </div>
+
+    <!-- Grid -->
+    <div class="hist-grid" id="histGrid"></div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════ CONNECT MODAL ═══════════════════ -->
+<div class="modal-backdrop" id="connectModal">
+  <div class="modal-sheet">
+    <button class="modal-close" onclick="closeConnectModal()">✕</button>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <svg width="20" height="20" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#43a047" d="M37 45H11c-1.657 0-3-1.343-3-3V6c0-1.657 1.343-3 3-3h19l10 10v29c0 1.657-1.343 3-3 3z"/>
+        <path fill="#c8e6c9" d="M40 13H30V3z"/>
+        <path fill="#2e7d32" d="M30 3l10 10h-10z"/>
+        <path fill="#fff" d="M15 22h18v2H15zm0 4h18v2H15zm0 4h12v2H15z"/>
+      </svg>
+      <span style="font-size:15px;font-weight:600;">Connect Google Sheets</span>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Paste your Apps Script Web App URL to auto-log every barcode.</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <input type="text" id="webhookUrl" placeholder="https://script.google.com/macros/s/…" style="flex:1;font-size:12px;padding:9px 12px;" />
+      <button class="save-url-btn" onclick="saveWebhookUrl()">Save</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">
+      No URL yet? <button onclick="toggleSetup()" style="background:none;border:none;color:var(--accent2);font-size:11px;cursor:pointer;padding:0;">View setup steps</button>
+    </div>
+    <div id="setupSteps" style="display:none;background:var(--surface2);border-radius:8px;padding:14px;font-size:12px;color:var(--muted);line-height:1.8;">
+      <ol style="padding-left:18px;">
+        <li>Open <a href="https://sheets.google.com" target="_blank" style="color:var(--accent2);">Google Sheets</a> → create a new spreadsheet</li>
+        <li>Go to <strong style="color:var(--text);">Extensions → Apps Script</strong> → delete existing code → paste the script below → Deploy as <strong style="color:var(--text);">Web App</strong> → set access to <strong style="color:var(--text);">Anyone</strong> → copy the URL</li>
+        <li>Paste the URL above and click <strong style="color:var(--text);">Save</strong></li>
+      </ol>
+      <div style="margin-top:10px;background:#f5f5f5;border-radius:6px;padding:10px;font-family:'Space Mono',monospace;font-size:10px;color:#1a7a3c;white-space:pre;overflow-x:auto;line-height:1.6;border:1px solid #e0e0e0;" id="scriptCode">function doPost(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Barcodes') || ss.insertSheet('Barcodes');
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(['Text', 'User', 'Date', 'Time']);
+    sheet.getRange(1,1,1,4).setFontWeight('bold');
+  }
+  var data = JSON.parse(e.postData.contents);
+  sheet.appendRow([data.text, data.user, data.date, data.time]);
+  return ContentService
+    .createTextOutput(JSON.stringify({status:'ok'}))
+    .setMimeType(ContentService.MimeType.JSON);
+}</div>
+      <button class="action-btn" style="margin-top:8px;font-size:11px;" onclick="copyScript()">⎘ Copy script</button>
+    </div>
+    <div class="sync-log" id="syncLog"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ DETAIL MODAL ═══════════════════ -->
+<div class="detail-modal-backdrop" id="detailModal">
+  <div class="detail-modal-box">
+    <button class="modal-close" onclick="closeDetailModal()">✕</button>
+    <div class="card-title">Barcode Detail</div>
+    <div style="background:#fff;border-radius:8px;padding:14px;display:flex;justify-content:center;">
+      <canvas id="modalCanvas"></canvas>
+    </div>
+    <div id="modalText" style="font-family:'Space Mono',monospace;font-size:13px;color:var(--text);word-break:break-all;"></div>
+    <div id="modalMeta" style="font-size:11px;color:var(--muted);"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="action-btn" style="flex:1;" onclick="downloadModal()">⬇ Download PNG</button>
+      <button class="action-btn" style="flex:1;" onclick="copyModal()">⎘ Copy Image</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// CONSTANTS & STATE
+// ══════════════════════════════════════════════════════
+const USERS          = ['User1','User2','User3','User4'];
+const STORAGE_PREFIX = 'bc_hist_';
+const WEBHOOK_KEY    = 'bc_webhook';
+const MAX_PER_USER   = 30;
+
+let currentUser  = localStorage.getItem('bc_user') || 'User1';
+let historyUser  = currentUser; // active tab on history page
+let webhookUrl   = '';
+let currentBarcode = null;
+let modalItem    = null;
+let recognition  = null;
+let isRecording  = false;
+
+// ══════════════════════════════════════════════════════
+// CODE 128 ENCODER
+// ══════════════════════════════════════════════════════
+const C128 = (() => {
+  const P = [
+    '11011001100','11001101100','11001100110','10010011000','10010001100',
+    '10001001100','10011001000','10011000100','10001100100','11001001000',
+    '11001000100','11000100100','10110011100','10011011100','10011001110',
+    '10111001100','10011101100','10011100110','11001110010','11001011100',
+    '11001001110','11011100100','11001110100','11101101110','11101001100',
+    '11100101100','11100100110','11101100100','11100110100','11100110010',
+    '11011011000','11011000110','11000110110','10100011000','10001011000',
+    '10001000110','10110001000','10001101000','10001100010','11010001000',
+    '11000101000','11000100010','10110111000','10110001110','10001101110',
+    '10111011000','10111000110','10001110110','11101110110','11010001110',
+    '11000101110','11011101000','11011100010','11011101110','11101011000',
+    '11101000110','11100010110','11101101000','11101100010','11100011010',
+    '11101111010','11001000010','11110001010','10100110000','10100001100',
+    '10010110000','10010000110','10000101100','10000100110','10110010000',
+    '10110000100','10011010000','10011000010','10000110100','10000110010',
+    '11000010010','11001010000','11110111010','11000010100','10001111010',
+    '10100111100','10010111100','10010011110','10111100100','10011110100',
+    '10011110010','11110100100','11110010100','11110010010','11011011110',
+    '11011110110','11110110110','10101111000','10100011110','10001011110',
+    '10111101000','10111100010','11110101000','11110100010','10111011110',
+    '10111101110','11101011110','11110101110','11010000100','11010010000',
+    '11010011100','1100011101011'
+  ];
+  return {
+    encode(text) {
+      const startB = 104;
+      let checksum = startB, indices = [startB];
+      for (let i = 0; i < text.length; i++) {
+        const c = text.charCodeAt(i) - 32;
+        if (c < 0 || c > 94) return null;
+        indices.push(c);
+        checksum += c * (i + 1);
+      }
+      indices.push(checksum % 103);
+      let bars = P[startB];
+      for (let i = 1; i < indices.length; i++) bars += P[indices[i]];
+      bars += P[106];
+      return bars;
+    }
+  };
+})();
+
+// ══════════════════════════════════════════════════════
+// DRAWING
+// ══════════════════════════════════════════════════════
+function drawBars(canvas, bars, text, opts = {}) {
+  const { bw = 2, h = 80, quiet = 16, showText = true } = opts;
+  const th = showText ? 18 : 0;
+  canvas.width  = bars.length * bw + quiet * 2;
+  canvas.height = h + th;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#111';
+  for (let i = 0; i < bars.length; i++) {
+    if (bars[i] === '1') ctx.fillRect(quiet + i * bw, 0, bw, h);
+  }
+  if (showText && text) {
+    ctx.fillStyle = '#444';
+    ctx.font = '11px Space Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, canvas.width / 2, h + 13);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// STORAGE
+// ══════════════════════════════════════════════════════
+function getKey(user) { return STORAGE_PREFIX + user; }
+
+function loadHistory(user) {
+  try { return JSON.parse(localStorage.getItem(getKey(user))) || []; }
+  catch { return []; }
+}
+
+function saveHistory(user, items) {
+  try { localStorage.setItem(getKey(user), JSON.stringify(items)); } catch {}
+}
+
+function addToHistory(text, bars) {
+  let items = loadHistory(currentUser).filter(h => h.text !== text);
+  items.unshift({ text, bars, user: currentUser, ts: Date.now() });
+  if (items.length > MAX_PER_USER) items = items.slice(0, MAX_PER_USER);
+  saveHistory(currentUser, items);
+}
+
+// ══════════════════════════════════════════════════════
+// PAGE NAVIGATION
+// ══════════════════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('navGen').classList.toggle('active', name === 'generator');
+  document.getElementById('navHist').classList.toggle('active', name === 'history');
+  if (name === 'history') {
+    historyUser = currentUser;
+    buildHistoryPage();
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// GENERATOR
+// ══════════════════════════════════════════════════════
+function generateBarcode() {
+  const input = document.getElementById('barcodeInput');
+  const text  = input.value.trim();
+  if (!text) { showToast('Please enter text or numbers.'); return; }
+
+  const bars = C128.encode(text);
+  if (!bars) { showToast('Could not encode — use standard characters.'); return; }
+
+  input.value = '';
+  currentBarcode = { text, bars };
+  renderPreview(text, bars);
+  addToHistory(text, bars);
+
+  if (!webhookUrl) {
+    showToast('⚠ Data not synced — Google Sheets not connected.');
+  } else {
+    syncToSheets(text);
+  }
+}
+
+function renderPreview(text, bars) {
+  const canvas = document.getElementById('barcode-canvas');
+  drawBars(canvas, bars, text, { bw: 2, h: 90, quiet: 16, showText: true });
+  document.getElementById('previewEmpty').style.display       = 'none';
+  canvas.style.display                                        = 'block';
+  document.getElementById('barcode-label-text').style.display = 'block';
+  document.getElementById('barcode-label-text').textContent   = 'Code 128';
+  document.getElementById('barcodeActions').style.display     = 'flex';
+  currentBarcode = { text, bars };
+}
+
+// ── Mini history panel on generator page ──
+function renderMiniHistory() {
+  const items = loadHistory(currentUser).slice(0, 9);
+  const grid  = document.getElementById('miniHistGrid');
+  document.getElementById('miniHistTitle').textContent = 'Recent — ' + currentUser;
+  grid.innerHTML = '';
+
+  if (items.length === 0) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--muted);font-size:13px;">No barcodes yet</div>';
+    return;
+  }
+
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'h-card';
+    card.style.cursor = 'pointer';
+    card.onclick = () => openDetailModal(item);
+
+    const bcDiv = document.createElement('div');
+    bcDiv.className = 'h-card-bc';
+    const cnv = document.createElement('canvas');
+    const b = item.bars || C128.encode(item.text);
+    if (b) {
+      drawBars(cnv, b, item.text, { bw: 1, h: 28, quiet: 6, showText: false });
+      cnv.style.width  = Math.min(cnv.width, 160) + 'px';
+      cnv.style.height = '28px';
+    }
+    bcDiv.appendChild(cnv);
+
+    const txt = document.createElement('div');
+    txt.className = 'h-card-text';
+    txt.textContent = item.text;
+
+    const d = new Date(item.ts);
+    const t = document.createElement('div');
+    t.className = 'h-card-time';
+    t.textContent = d.toLocaleTimeString();
+
+    card.appendChild(bcDiv);
+    card.appendChild(txt);
+    card.appendChild(t);
+    grid.appendChild(card);
+  });
+}
+
+// ── Download / Copy ──
+function downloadBarcode() {
+  if (!currentBarcode) return;
+  const a = document.createElement('a');
+  a.download = 'barcode-' + currentBarcode.text + '.png';
+  a.href = document.getElementById('barcode-canvas').toDataURL('image/png');
+  a.click();
+  showToast('Downloaded!');
+}
+
+async function copyToClipboard() {
+  try {
+    document.getElementById('barcode-canvas').toBlob(async blob => {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      showToast('Copied to clipboard!');
+    });
+  } catch { showToast('Copy not supported in this browser.'); }
+}
+
+// ══════════════════════════════════════════════════════
+// HISTORY PAGE
+// ══════════════════════════════════════════════════════
+function buildHistoryPage() {
+  buildUserTabs();
+  renderHistGrid();
+}
+
+function buildUserTabs() {
+  const wrap = document.getElementById('histUserTabs');
+  wrap.innerHTML = '';
+  USERS.forEach(u => {
+    const count = loadHistory(u).length;
+    const btn = document.createElement('button');
+    btn.className = 'user-tab' + (u === historyUser ? ' active' : '');
+    btn.innerHTML = u + ' <span class="tab-count">' + count + ' / ' + MAX_PER_USER + '</span>';
+    btn.onclick = () => { historyUser = u; buildUserTabs(); renderHistGrid(); };
+    wrap.appendChild(btn);
+  });
+}
+
+function renderHistGrid() {
+  const items = loadHistory(historyUser);
+  const grid  = document.getElementById('histGrid');
+  const pct   = Math.round(items.length / MAX_PER_USER * 100);
+
+  document.getElementById('histSectionTitle').textContent = historyUser + ' History';
+  document.getElementById('histCount').textContent        = items.length + ' / ' + MAX_PER_USER;
+  document.getElementById('progLabel').textContent        = pct + '% of limit used (' + items.length + ' of ' + MAX_PER_USER + ')';
+  const fill = document.getElementById('progFill');
+  fill.style.width      = pct + '%';
+  fill.style.background = pct >= 90 ? '#d93025' : pct >= 70 ? '#f59e0b' : '#1a7a3c';
+
+  grid.innerHTML = '';
+
+  if (items.length === 0) {
+    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div>No barcodes for ' + historyUser + ' yet.</div>';
+    return;
+  }
+
+  items.forEach((item, idx) => {
+    const card = document.createElement('div');
+    card.className = 'h-card';
+
+    // barcode preview
+    const bcDiv = document.createElement('div');
+    bcDiv.className = 'h-card-bc';
+    const cnv = document.createElement('canvas');
+    const b = item.bars || C128.encode(item.text);
+    if (b) {
+      drawBars(cnv, b, item.text, { bw: 1, h: 34, quiet: 8, showText: false });
+      cnv.style.width  = '100%';
+      cnv.style.height = '34px';
+    }
+    bcDiv.appendChild(cnv);
+
+    // text
+    const txt = document.createElement('div');
+    txt.className = 'h-card-text';
+    txt.textContent = item.text;
+
+    // meta row
+    const meta = document.createElement('div');
+    meta.className = 'h-card-meta';
+
+    const d = new Date(item.ts);
+    const time = document.createElement('div');
+    time.className = 'h-card-time';
+    time.textContent = d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString();
+
+    const acts = document.createElement('div');
+    acts.className = 'h-card-actions';
+
+    const viewBtn = document.createElement('button');
+    viewBtn.className = 'h-btn';
+    viewBtn.textContent = '⤢';
+    viewBtn.title = 'View full size';
+    viewBtn.onclick = () => openDetailModal(item);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'h-del-btn';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Delete';
+    delBtn.onclick = () => deleteHistItem(idx);
+
+    acts.appendChild(viewBtn);
+    acts.appendChild(delBtn);
+    meta.appendChild(time);
+    meta.appendChild(acts);
+
+    card.appendChild(bcDiv);
+    card.appendChild(txt);
+    card.appendChild(meta);
+    grid.appendChild(card);
+  });
+}
+
+function deleteHistItem(idx) {
+  let items = loadHistory(historyUser);
+  items.splice(idx, 1);
+  saveHistory(historyUser, items);
+  buildUserTabs();
+  renderHistGrid();
+  showToast('Deleted.');
+}
+
+function clearActiveUser() {
+  if (!confirm('Clear all history for ' + historyUser + '?')) return;
+  saveHistory(historyUser, []);
+  buildUserTabs();
+  renderHistGrid();
+  showToast(historyUser + ' history cleared.');
+}
+
+// ══════════════════════════════════════════════════════
+// DETAIL MODAL
+// ══════════════════════════════════════════════════════
+function openDetailModal(item) {
+  modalItem = item;
+  const canvas = document.getElementById('modalCanvas');
+  const b = item.bars || C128.encode(item.text);
+  if (b) {
+    drawBars(canvas, b, item.text, { bw: 2, h: 80, quiet: 16, showText: true });
+    canvas.style.maxWidth = '100%';
+  }
+  document.getElementById('modalText').textContent = item.text;
+  const d = new Date(item.ts);
+  document.getElementById('modalMeta').textContent =
+    (item.user || '') + ' · ' + d.toLocaleDateString('en-GB') + ' · ' + d.toLocaleTimeString();
+  document.getElementById('detailModal').classList.add('open');
+}
+
+function closeDetailModal() {
+  document.getElementById('detailModal').classList.remove('open');
+  modalItem = null;
+}
+
+function downloadModal() {
+  if (!modalItem) return;
+  const a = document.createElement('a');
+  a.download = 'barcode-' + modalItem.text + '.png';
+  a.href = document.getElementById('modalCanvas').toDataURL('image/png');
+  a.click();
+  showToast('Downloaded!');
+}
+
+async function copyModal() {
+  try {
+    document.getElementById('modalCanvas').toBlob(async blob => {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      showToast('Copied!');
+    });
+  } catch { showToast('Copy not supported in this browser.'); }
+}
+
+document.getElementById('detailModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('detailModal')) closeDetailModal();
+});
+
+// ══════════════════════════════════════════════════════
+// USER DROPDOWN
+// ══════════════════════════════════════════════════════
+function toggleUserDropdown() {
+  const m = document.getElementById('userDropMenu');
+  m.style.display = m.style.display === 'block' ? 'none' : 'block';
+}
+
+function selectUser(u) {
+  currentUser = u;
+  localStorage.setItem('bc_user', u);
+  document.getElementById('userDropLabel').textContent = u;
+  document.querySelectorAll('.user-option').forEach(el => {
+    el.classList.toggle('active', el.textContent === u);
+  });
+  document.getElementById('userDropMenu').style.display = 'none';
+}
+
+function initUserDropdown() {
+  document.getElementById('userDropLabel').textContent = currentUser;
+  document.querySelectorAll('.user-option').forEach(el => {
+    el.classList.toggle('active', el.textContent === currentUser);
+  });
+}
+
+document.addEventListener('click', e => {
+  if (!document.getElementById('userDropBtn').contains(e.target))
+    document.getElementById('userDropMenu').style.display = 'none';
+});
+
+// ══════════════════════════════════════════════════════
+// GOOGLE SHEETS
+// ══════════════════════════════════════════════════════
+function loadWebhookUrl() {
+  webhookUrl = localStorage.getItem(WEBHOOK_KEY) || '';
+  const inp = document.getElementById('webhookUrl');
+  if (inp) inp.value = webhookUrl;
+  updateSheetsStatus();
+}
+
+function saveWebhookUrl() {
+  const val = document.getElementById('webhookUrl').value.trim();
+  if (val && !val.startsWith('https://script.google.com/')) {
+    showToast('URL must start with https://script.google.com/'); return;
+  }
+  webhookUrl = val;
+  localStorage.setItem(WEBHOOK_KEY, webhookUrl);
+  updateSheetsStatus();
+  showToast(webhookUrl ? 'Sheets URL saved!' : 'Webhook cleared.');
+}
+
+function updateSheetsStatus() {
+  const dot = document.getElementById('statusDot');
+  const lbl = document.getElementById('connectBtnLabel');
+  if (webhookUrl) { dot.className = 'status-dot connected'; lbl.textContent = 'Connected'; }
+  else            { dot.className = 'status-dot';            lbl.textContent = 'Connect'; }
+}
+
+async function syncToSheets(text) {
+  if (!webhookUrl) return;
+  document.getElementById('statusDot').className = 'status-dot syncing';
+  const now = new Date();
+  try {
+    await fetch(webhookUrl, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, user: currentUser, date: now.toLocaleDateString('en-GB'), time: now.toLocaleTimeString() })
+    });
+    addSyncLog('ok', '✓ Synced: ' + text);
+  } catch (err) {
+    addSyncLog('err', '✗ Failed: ' + err.message);
+  }
+  document.getElementById('statusDot').className = 'status-dot connected';
+}
+
+function addSyncLog(type, msg) {
+  const c = document.getElementById('syncLog');
+  const el = document.createElement('div');
+  el.className = 'log-' + type;
+  el.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+  c.prepend(el);
+  while (c.children.length > 8) c.removeChild(c.lastChild);
+}
+
+function openConnectModal() {
+  const inp = document.getElementById('webhookUrl');
+  if (inp && webhookUrl) inp.value = webhookUrl;
+  document.getElementById('connectModal').classList.add('open');
+}
+
+function closeConnectModal() {
+  document.getElementById('connectModal').classList.remove('open');
+}
+
+document.getElementById('connectModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('connectModal')) closeConnectModal();
+});
+
+function toggleSetup() {
+  const el = document.getElementById('setupSteps');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function copyScript() {
+  navigator.clipboard.writeText(document.getElementById('scriptCode').textContent)
+    .then(() => showToast('Script copied!'))
+    .catch(() => showToast('Select the code manually.'));
+}
+
+// ══════════════════════════════════════════════════════
+// MIC
+// ══════════════════════════════════════════════════════
+function toggleMic() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    showToast('Speech recognition not supported.'); return;
+  }
+  if (isRecording) { stopMic(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'en-US';
+  recognition.interimResults = true;
+  recognition.continuous = false;
+  recognition.onstart = () => {
+    isRecording = true;
+    document.getElementById('micBtn').classList.add('recording');
+    document.getElementById('micStatus').textContent = '🎙 Listening…';
+  };
+  recognition.onresult = e => {
+    const t = Array.from(e.results).map(r => r[0].transcript).join('');
+    document.getElementById('barcodeInput').value = t;
+    if (e.results[0].isFinal)
+      document.getElementById('micStatus').textContent = '✓ Captured: ' + t;
+  };
+  recognition.onerror = e => {
+    document.getElementById('micStatus').textContent = '⚠ ' + e.error;
+    stopMic();
+  };
+  recognition.onend = stopMic;
+  recognition.start();
+}
+
+function stopMic() {
+  isRecording = false;
+  document.getElementById('micBtn').classList.remove('recording');
+  try { recognition && recognition.stop(); } catch {}
+  setTimeout(() => {
+    const s = document.getElementById('micStatus');
+    if (!s.textContent.startsWith('✓')) s.textContent = '';
+  }, 2000);
+}
+
+// ══════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ══════════════════════════════════════════════════════
+// ENTER KEY
+// ══════════════════════════════════════════════════════
+document.getElementById('barcodeInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') generateBarcode();
+});
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+initUserDropdown();
+loadWebhookUrl();
+</script>
+</body>
+</html>
