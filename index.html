@@ -725,9 +725,9 @@ input[type="text"]::placeholder { color: var(--muted); font-size: 14px; }
       </svg>
       <span style="font-size:15px;font-weight:600;">Connect Google Sheets</span>
     </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Paste your Apps Script Web App URL to auto-log every barcode.</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Paste your Power Automate or Google Apps Script webhook URL to auto-log every barcode.</div>
     <div style="display:flex;gap:8px;margin-bottom:14px;">
-      <input type="text" id="webhookUrl" placeholder="https://script.google.com/macros/s/…" style="flex:1;font-size:12px;padding:9px 12px;" />
+      <input type="text" id="webhookUrl" placeholder="https://prod-xx.westus.logic.azure.com/…  or  https://script.google.com/…" style="flex:1;font-size:12px;padding:9px 12px;" />
       <button class="save-url-btn" onclick="saveWebhookUrl()">Save</button>
     </div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">
@@ -1198,13 +1198,13 @@ function loadWebhookUrl() {
 
 function saveWebhookUrl() {
   const val = document.getElementById('webhookUrl').value.trim();
-  if (val && !val.startsWith('https://script.google.com/')) {
-    showToast('URL must start with https://script.google.com/'); return;
+  if (val && !val.startsWith('https://')) {
+    showToast('URL must start with https://'); return;
   }
   webhookUrl = val;
   localStorage.setItem(WEBHOOK_KEY, webhookUrl);
   updateSheetsStatus();
-  showToast(webhookUrl ? 'Sheets URL saved!' : 'Webhook cleared.');
+  showToast(webhookUrl ? 'URL saved!' : 'Webhook cleared.');
 }
 
 function updateSheetsStatus() {
